@@ -43,8 +43,10 @@ to produce distinctly different reconstruction errors for ID vs. OOD samples,
 directly optimising the OOD detection signal.
 
 ### Best Results
-- **Best seed run: AUROC 0.9887** (Seed 456), Mean: **0.9882 ± 0.0006** (3 seeds)
-- **Best overall: AUROC 0.9911** (sep loss ablation λ=0.02, epoch 29) ⭐
+- **λ=0.01 (3 seeds):** 0.9882 ± 0.0006
+- **λ=0.02 (3 seeds):** **0.9903 ± 0.0007** ← confirmed optimal ⭐
+- **Best single run:** 0.9911 (λ=0.02, seed 42, epoch 29)
+- **Best external OOD:** SVHN AUROC=0.9658 (λ=0.02, +4.0% vs λ=0.01)
 
 ### Training Hyperparameters
 - Batch size: 64 (effective: 128 with accumulate_grad_batches=2)

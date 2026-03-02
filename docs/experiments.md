@@ -158,28 +158,41 @@ Key: All within 0.4% of each other. Uniform slightly best (98.9%).
 **Script:** `scripts/run_seeds_lambda02.sh`
 **Config:** Same as Experiment 4 (sep_0.02) but with seeds 123 and 456.
 
-| Seed | AUROC | Best Epoch | Status | Date |
-|------|-------|------------|--------|----- |
-| 42   | 0.9911 | 29        | ✅ Done | Feb 25 |
-| 123  | 0.9840 | 29        | ✅ Done | Feb 26 |
-| 456  | —      | —         | ⏳ Not started | — |
+| Seed | AUROC  | Best Epoch | Status | Run Date |
+|------|--------|------------|--------|---------|
+| 42   | 0.9911 | 29         | ✅ Done | Feb 25  |
+| 123  | 0.9895 | 39         | ✅ Done | Feb 26 (improved from 0.9840) |
+| 456  | 0.9904 | 29         | ✅ Done | Mar 01  |
+| **Mean ± Std** | **0.9903 ± 0.0007** | — | ✅ Complete | — |
 
-> When seed 456 completes, the 3-seed mean for λ=0.02 can be computed and compared
-> to λ=0.01's mean of 0.9882 ± 0.0006.
+**λ=0.02 vs λ=0.01:**
+| Metric | λ=0.01 | λ=0.02 | Δ |
+|--------|---------|---------|---|
+| Mean AUROC | 0.9882 | **0.9903** | +0.0021 |
+| Std | 0.0006 | 0.0007 | similar |
+| Peak | 0.9887 | **0.9911** | +0.0024 |
+
+> λ=0.02 is the **confirmed optimal** — better mean, better peak, same stability.
 
 ---
 
-## Experiment 6 — Figure Generation
+## Experiment 6 — External OOD for λ=0.02 Best Checkpoint
 
-**Script:** `scripts/generate_missing_figures.py`, `scripts/generate_all_figures_tables.py`
-**Date:** 2026-02-26
+**Script:** `scripts/eval_lambda02_best.py`
+**Checkpoint:** `sep_0.02/best-epoch=29-val/auroc=0.9911.ckpt`
+**Config:** K=50 trials, difference scoring, mid_focus timesteps
+**Date:** 2026-02-27
 
-New figures generated:
-- `training_curves.png` — AUROC + FPR95 vs epoch for 3 seeds (λ=0.01)
-- `roc_curves_cifar10.png` — ROC curves across 5 OOD datasets (seed 42)
-- `sep_loss_dual.png` — Ablation curve + convergence speed bar chart
-- `three_seed_auroc.png` — 3-seed bar chart showing 0.9882 ± 0.0006
-- `scoring_methods_full.png` — 3-panel scoring method comparison
+| Dataset | λ=0.02 AUROC | FPR@95% | vs λ=0.01 avg |
+|---------|-------------|---------|---------------|
+| CIFAR-10 (within) | **0.9918** | 3.6% | +0.0016 |
+| CIFAR-100 | **0.9746** | 14.2% | +0.0074 |
+| STL-10 | 0.9514 | 35.7% | −0.0002 |
+| FashionMNIST | 0.9229 | 26.1% | −0.0117 |
+| SVHN | **0.9658** | **13.3%** | **+0.0398** 🚀 |
+
+> **SVHN improvement of +4.0%** is the most notable finding — higher λ helps
+> generalize to more distributional-shift OOD datasets.
 
 ---
 
