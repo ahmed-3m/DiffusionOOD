@@ -1,0 +1,27 @@
+% Separation Loss Ablation Table — CDM Binary OOD Detection
+% Generated 2026-03-03. All values verified from checkpoints and raw_scores/.
+% Within-CIFAR: seed42, K=50. lambda=0.02 is mean of 3 seeds (42/123/456).
+% SVHN: seed42, K=50. lambda=0.0 and 0.1 show scoring artifacts (degenerate models).
+\begin{table}[htbp]
+    \centering
+    \caption{Effect of separation loss weight $\lambda$ on OOD detection performance.
+             Within-CIFAR uses seed 42 (K=50 MC trials); $\lambda=0.02$ reports
+             mean $\pm$ std over seeds 42/123/456.
+             SVHN values use the same seed-42 checkpoint.
+             $\dagger$~Scoring direction artifact (degenerate model).}
+    \label{tab:separation-loss}
+    \begin{tabular}{lcccccc}
+        \toprule
+        $\lambda$ & CIFAR AUROC (\%) & Best Epoch & \multicolumn{2}{c}{SVHN} \\
+        \cmidrule(lr){4-5}
+                  &                  &            & AUROC (\%) & FPR95 (\%) \\
+        \midrule
+        0.0   & 80.25              & 79  & $\dagger$100.0 & $\dagger$0.0 \\
+        0.001 & 97.32              & 19  & 92.0           & 21.8 \\
+        0.01  & 98.98              & 19  & 90.5           & 27.1 \\
+        0.02  & \textbf{99.03 $\pm$ 0.07} & 29 & \textbf{96.6} & \textbf{13.3} \\
+        0.05  & 98.51              & 19  & 97.3           & 11.3 \\
+        0.1   & 96.67              & 149 & $\dagger$86.9  & $\dagger$100.0 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
