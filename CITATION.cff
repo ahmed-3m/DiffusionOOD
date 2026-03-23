@@ -1,6 +1,6 @@
 cff-version: 1.2.0
 message: "If you use this software, please cite it as below."
-title: "DiffusionOOD: Conditional Diffusion Models for Out-of-Distribution Detection"
+title: "DiffusionOOD: Conditional Diffusion Models as Generative Classifiers for Out-of-Distribution Detection in Inkjet Print Quality Control"
 type: software
 license: MIT
 repository-code: "https://github.com/ahmed-3m/DiffusionOOD"
@@ -9,7 +9,7 @@ authors:
     given-names: Ahmed
 preferred-citation:
   type: thesis
-  title: "Conditional Diffusion Models for Out-of-Distribution Detection and Inkjet Print Quality Control"
+  title: "Conditional Diffusion Models as Generative Classifiers for Out-of-Distribution Detection in Inkjet Print Quality Control"
   authors:
     - family-names: Mohammed
       given-names: Ahmed

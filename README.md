@@ -2,7 +2,7 @@
 
 # DiffusionOOD
 
-**Conditional Diffusion Models for Out-of-Distribution Detection**
+**Conditional Diffusion Models as Generative Classifiers for Out-of-Distribution Detection in Inkjet Print Quality Control**
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![PyTorch 2.0+](https://img.shields.io/badge/pytorch-2.0+-ee4c2c.svg)](https://pytorch.org/)
@@ -249,8 +249,8 @@ DiffusionOOD/
 ```bibtex
 @mastersthesis{mohammed2026diffusionood,
   author  = {Mohammed, Ahmed},
-  title   = {Conditional Diffusion Models for Out-of-Distribution Detection
-             and Inkjet Print Quality Control},
+  title   = {Conditional Diffusion Models as Generative Classifiers for
+             Out-of-Distribution Detection in Inkjet Print Quality Control},
   school  = {Johannes Kepler University Linz},
   year    = {2026},
   type    = {Master's Thesis},
