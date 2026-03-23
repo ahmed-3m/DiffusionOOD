@@ -249,8 +249,8 @@ DiffusionOOD/
 ```bibtex
 @mastersthesis{mohammed2026diffusionood,
   author  = {Mohammed, Ahmed},
-  title   = {Conditional Diffusion Models as Generative Classifiers for
-             Out-of-Distribution Detection},
+  title   = {Conditional Diffusion Models for Out-of-Distribution Detection
+             and Inkjet Print Quality Control},
   school  = {Johannes Kepler University Linz},
   year    = {2026},
   type    = {Master's Thesis},
