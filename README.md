@@ -247,12 +247,12 @@ DiffusionOOD/
 ## Citation
 
 ```bibtex
-@mastersthesis{mohammed2025diffusionood,
+@mastersthesis{mohammed2026diffusionood,
   author  = {Mohammed, Ahmed},
   title   = {Conditional Diffusion Models as Generative Classifiers for
              Out-of-Distribution Detection},
   school  = {Johannes Kepler University Linz},
-  year    = {2025},
+  year    = {2026},
   type    = {Master's Thesis},
 }
 ```
