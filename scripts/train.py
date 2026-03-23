@@ -15,7 +15,7 @@ from lightning.pytorch.callbacks import ModelCheckpoint, EarlyStopping, Learning
 from lightning.pytorch.loggers import WandbLogger
 import wandb
 
-from configs.default import Config, ModelConfig, TrainingConfig, DataConfig, EvalConfig, LoggingConfig
+
 from src.lightning_module import DiffusionClassifierOOD
 from src.data import CIFAR10BinaryDataModule
 from src.utils import (
@@ -24,6 +24,7 @@ from src.utils import (
     cleanup_old_checkpoints,
     MemoryCleanupCallback,
     SampleVisualizationCallback,
+    HuggingFaceUploadCallback,
     push_to_huggingface,
 )
 from src.model import generate_model_card
@@ -85,8 +86,8 @@ def main():
     args = parse_args()
     setup_logging()
     
-    # Set seed for reproducibility
     set_seed(args.seed)
+
     
     os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
     
@@ -199,11 +200,7 @@ def main():
         if args.resume or args.checkpoint_path:
             logger.warning("Resume requested but no checkpoint found. Starting fresh.")
     
-    logger.info("=" * 60)
-    logger.info(" DIFFUSION CLASSIFIER FOR OOD DETECTION")
-    logger.info(" Training started")
-    logger.info("=" * 60)
-    
+    logger.info(f"Starting run '{run_name}' | seed={args.seed} | output={output_dir}")
     torch.cuda.empty_cache()
     trainer.fit(model, datamodule=data, ckpt_path=resume_ckpt)
     
@@ -223,12 +220,15 @@ def main():
             except Exception as e:
                 logger.error(f"Failed to upload to HuggingFace: {e}")
     
-    logger.info("=" * 60)
-    logger.info(" TRAINING COMPLETE")
-    logger.info(f" Best checkpoint: {checkpoint_callback.best_model_path}")
-    logger.info(f" Best AUROC: {checkpoint_callback.best_model_score:.4f}")
-    logger.info("=" * 60)
-    
+    best_score = checkpoint_callback.best_model_score
+    if best_score is not None:
+        logger.info(
+            f"Training complete | best={checkpoint_callback.best_model_path} "
+            f"| AUROC={best_score:.4f}"
+        )
+    else:
+        logger.info("Training complete")
+
     wandb.finish()
 
 

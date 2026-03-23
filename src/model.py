@@ -8,12 +8,7 @@ logger = logging.getLogger(__name__)
 
 
 class ConditionalUNet(nn.Module):
-    """
-    Wrapper around diffusers UNet2DModel with class conditioning.
-    
-    This provides a cleaner interface for the diffusion classifier,
-    handling the class embedding internally.
-    """
+    """UNet2DModel with a binary class-conditioning head for OOD detection."""
     
     def __init__(
         self,
@@ -58,26 +53,15 @@ class ConditionalUNet(nn.Module):
         timestep: torch.Tensor,
         class_labels: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
-        """
-        Forward pass through the UNet.
-        
-        Args:
-            sample: Noisy input tensor [B, C, H, W]
-            timestep: Diffusion timestep [B]
-            class_labels: Class conditioning [B]
-            
-        Returns:
-            Predicted noise [B, C, H, W]
-        """
-        output = self.unet(sample, timestep, class_labels=class_labels)
-        return output.sample
+        """Return predicted noise [B, C, H, W]."""
+        return self.unet(sample, timestep, class_labels=class_labels).sample
     
     def get_num_params(self) -> int:
         return sum(p.numel() for p in self.parameters())
 
 
 def create_model(config) -> ConditionalUNet:
-    """Factory function to create a ConditionalUNet from config."""
+    """Instantiate a ConditionalUNet from a ModelConfig dataclass."""
     model = ConditionalUNet(
         sample_size=config.sample_size,
         in_channels=config.in_channels,
@@ -88,10 +72,7 @@ def create_model(config) -> ConditionalUNet:
         up_block_types=config.up_block_types,
         num_class_embeds=config.num_class_embeds,
     )
-    
-    num_params = model.get_num_params()
-    logger.info(f"Created ConditionalUNet with {num_params / 1e6:.2f}M parameters")
-    
+    logger.info(f"Model: {model.get_num_params() / 1e6:.2f}M parameters")
     return model
 
 
@@ -100,8 +81,11 @@ def generate_model_card(
     metrics: dict,
     training_time: str = "",
 ) -> str:
-    """Generate a HuggingFace model card."""
-    
+    """Return a HuggingFace README card string for the trained model."""
+
+    def _fmt(val) -> str:
+        return f"{val:.4f}" if isinstance(val, float) else str(val)
+
     card = f"""---
 license: mit
 tags:
@@ -117,8 +101,8 @@ Binary conditional diffusion model trained on CIFAR-10 for out-of-distribution d
 
 ## Model Details
 
-- **Architecture**: UNet2DModel with class conditioning
-- **Parameters**: {config.num_class_embeds} classes
+- **Architecture**: UNet2DModel with binary class conditioning
+- **Classes**: {config.num_class_embeds} (c=0: ID, c=1: OOD proxy)
 - **Input size**: {config.sample_size}x{config.sample_size}
 - **Timesteps**: {config.num_train_timesteps}
 - **Beta schedule**: {config.beta_schedule}
@@ -126,23 +110,23 @@ Binary conditional diffusion model trained on CIFAR-10 for out-of-distribution d
 ## Training
 
 - **Dataset**: CIFAR-10 (airplane vs rest)
-- **Epochs**: {training_time}
+- **Duration**: {training_time}
 
 ## Metrics
 
 | Metric | Value |
 |--------|-------|
-| AUROC | {metrics.get('auroc', 'N/A'):.4f} |
-| FPR@95 | {metrics.get('fpr95', 'N/A'):.4f} |
-| AUPR | {metrics.get('aupr', 'N/A'):.4f} |
+| AUROC  | {_fmt(metrics.get('auroc', 0.0))} |
+| FPR@95 | {_fmt(metrics.get('fpr95', 1.0))} |
+| AUPR   | {_fmt(metrics.get('aupr', 0.0))} |
 
 ## Usage
 
 ```python
-from diffusion_classifier_ood.src import DiffusionClassifierOOD
+from src.lightning_module import DiffusionClassifierOOD
 
 model = DiffusionClassifierOOD.load_from_checkpoint("path/to/checkpoint.ckpt")
-ood_scores, predictions = model.score_images(images)
+scores, predictions = model.score_images(images)
 ```
 """
     return card

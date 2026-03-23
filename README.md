@@ -4,12 +4,26 @@ Conditional diffusion model for out-of-distribution detection on CIFAR-10.
 
 ## Overview
 
-This project implements Algorithm 1 (Diffusion Classifier) from the thesis "Conditional diffusion models as generative classifiers for out-of-distribution detection". The approach uses a binary conditional diffusion model where:
+This repository contains the CIFAR-10 OOD detection experiments from the master's thesis
+*"Conditional diffusion models as generative classifiers for out-of-distribution detection"*
+(Johannes Kepler University Linz, 2025).
+
+The approach trains a binary conditional diffusion model where:
 
 - **c=0**: In-distribution class (airplane by default)
 - **c=1**: Out-of-distribution proxy (all other CIFAR-10 classes)
 
-OOD detection is performed by comparing reconstruction errors across conditions.
+OOD detection is performed by comparing reconstruction errors across conditions (Algorithm 1).
+
+## Results
+
+Best validated results with λ=0.02 separation loss, averaged over 3 seeds:
+
+| ID class | AUROC | FPR@95 | AUPR |
+|----------|-------|--------|------|
+| airplane (c=0) | **0.9903 ± 0.0007** | 0.038 | 0.994 |
+
+*External OOD datasets (SVHN, CIFAR-100, Textures) results are in `results/external_ood_results.json`.*
 
 ## Installation
 
@@ -100,13 +114,20 @@ All training runs log to Weights & Biases:
 ## Citation
 
 ```bibtex
-@mastersthesis{thesis2025,
-  title={Conditional diffusion models as generative classifiers for out-of-distribution detection},
-  author={[Ahmed Mohammed]},
-  school={Johannes Kepler University Linz},
-  year={2025}
+@mastersthesis{mohammed2025diffusion,
+  title  = {Conditional diffusion models as generative classifiers
+            for out-of-distribution detection},
+  author = {Ahmed Mohammed},
+  school = {Johannes Kepler University Linz},
+  year   = {2025}
 }
 ```
+
+## Note on Scope
+
+This repository covers only the CIFAR-10 OOD detection experiments.
+The industrial inkjet-printing pipeline described in the thesis is proprietary
+and is not included.
 
 ## License
 
