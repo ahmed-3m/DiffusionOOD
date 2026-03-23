@@ -6,7 +6,7 @@ from sklearn.metrics import (
     average_precision_score,
     confusion_matrix,
 )
-from typing import Dict, Tuple
+from typing import Dict, Optional, Tuple
 import logging
 
 logger = logging.getLogger(__name__)
@@ -73,7 +73,7 @@ def compute_det_curve(
 def compute_all_metrics(
     labels: np.ndarray,
     scores: np.ndarray,
-    predictions: np.ndarray = None,
+    predictions: Optional[np.ndarray] = None,
 ) -> Dict[str, float]:
     """
     Compute all OOD detection metrics.

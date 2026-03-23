@@ -5,48 +5,67 @@ __pycache__/
 *.so
 .Python
 build/
-develop-eggs/
 dist/
-downloads/
 eggs/
 .eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
 *.egg-info/
-.installed.cfg
 *.egg
 MANIFEST
 
-# Virtual Env
+# Virtual environments
 venv/
 env/
 ENV/
+.venv/
 
-# Project specific
-outputs/
+# Data
 data/
+*.tar.gz
+*.zip
+*.tar.bz2
+
+# Model checkpoints & outputs
+checkpoints/
+outputs/
+eval_results/
+*.ckpt
+*.pt
+*.pth
+
+# Experiment tracking
 wandb/
+mlruns/
+lightning_logs/
+
+# Results (generated, not committed)
+results/
+results_json/
+
+# Thesis artifacts
+thesis_submission/
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# Type checking / lint caches
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
 .DS_Store
+Thumbs.db
+desktop.ini
 
-# Large result files (checkpoints, raw scores)
-results/**/*.ckpt
-results/raw_scores/
-results/seed*/wandb/
-results/sep_loss_ablation/*/wandb/
-output_quad/
-master_log.txt
-
-# Keep figures, JSONs, latex tables (tracked)
-!results/figures/
-!results/latex_tables/
-!results/*.json
-
-# Exclude large training logs (can be 50MB+)
-results/**/*.log
-results/figures_generation.log
-results/reeval.log
-results/sep_ablation_eval.log
+# Misc
+*.log
+*.tmp
+nul

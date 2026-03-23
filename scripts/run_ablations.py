@@ -9,15 +9,12 @@ Uses the best seed42 checkpoint for all ablations.
 """
 
 import os
-import sys
 import json
 import argparse
 import logging
 import time
 from pathlib import Path
 from glob import glob
-
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import torch
 import torchvision

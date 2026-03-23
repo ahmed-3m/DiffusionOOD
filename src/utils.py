@@ -183,19 +183,6 @@ class SampleVisualizationCallback(L.Callback):
         return fig
 
 
-class OODEvaluationCallback(L.Callback):
-    """Log detailed OOD plots at specified intervals."""
-    
-    def __init__(self, every_n_epochs: int = 10):
-        self.every_n_epochs = every_n_epochs
-        self.logger = logging.getLogger(__name__)
-    
-    def on_validation_epoch_end(self, trainer, pl_module):
-        if (trainer.current_epoch + 1) % self.every_n_epochs != 0:
-            return
-        
-        pass
-
 
 class HuggingFaceUploadCallback(L.Callback):
     """Upload best model to HuggingFace periodically."""
@@ -228,7 +215,7 @@ class HuggingFaceUploadCallback(L.Callback):
 # Diffusion Classifier OOD Detection
 
 - **Epoch**: {trainer.current_epoch}
-- **Best AUROC**: {model_score:.4f} if model_score else 'N/A'
+- **Best AUROC**: {f"{model_score:.4f}" if model_score else "N/A"}
 - **Timestamp**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
 """
             push_to_huggingface(

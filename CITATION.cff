@@ -1,0 +1,19 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "DiffusionOOD: Conditional Diffusion Models for Out-of-Distribution Detection"
+type: software
+license: MIT
+repository-code: "https://github.com/ahmed-3m/DiffusionOOD"
+authors:
+  - family-names: Mohammed
+    given-names: Ahmed
+preferred-citation:
+  type: thesis
+  title: "Conditional Diffusion Models as Generative Classifiers for Out-of-Distribution Detection"
+  authors:
+    - family-names: Mohammed
+      given-names: Ahmed
+  institution:
+    name: "Johannes Kepler University Linz"
+  year: 2025
+  thesis-type: "Master's Thesis"

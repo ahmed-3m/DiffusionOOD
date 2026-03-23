@@ -1,13 +1,7 @@
 import os
-import sys
 import argparse
 import logging
-import random
 from datetime import datetime
-
-import numpy as np
-
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import torch
 import lightning as L
@@ -71,22 +65,11 @@ def parse_args():
     return parser.parse_args()
 
 
-def set_seed(seed: int):
-    """Set all random seeds for reproducibility."""
-    random.seed(seed)
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False
-    logger.info(f"Set seed to {seed} (deterministic mode)")
-
-
 def main():
     args = parse_args()
     setup_logging()
-    
-    set_seed(args.seed)
+
+    L.seed_everything(args.seed, workers=True)
 
     
     os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"

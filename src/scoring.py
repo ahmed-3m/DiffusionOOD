@@ -1,6 +1,6 @@
 import torch
 import torch.nn.functional as F
-from typing import Tuple, Literal
+from typing import Optional, Tuple, Literal
 from tqdm import tqdm
 import logging
 
@@ -151,7 +151,7 @@ def compute_per_timestep_errors(
     model,
     scheduler,
     images: torch.Tensor,
-    timesteps_to_eval: list = None,
+    timesteps_to_eval: Optional[list[int]] = None,
     condition: int = 0,
 ) -> dict:
     """
