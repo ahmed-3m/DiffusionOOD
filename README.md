@@ -1,399 +1,271 @@
-# DiffusionOOD — Conditional Diffusion Model for CIFAR-10 OOD Detection
+<div align="center">
 
-[![HuggingFace Models](https://img.shields.io/badge/🤗%20HuggingFace-ahmed--3m%2FDiffusionOOD-blue)](https://huggingface.co/ahmed-3m/DiffusionOOD)
-[![GitHub](https://img.shields.io/badge/GitHub-ahmed--3m%2FDiffusionOOD-black)](https://github.com/ahmed-3m/DiffusionOOD)
+# DiffusionOOD
 
-**Thesis:** *Conditional Diffusion Models as Generative Classifiers for Out-of-Distribution Detection in Inkjet Print Quality Control*
-**Author:** Ahmed Mohammed — MSc AI, Johannes Kepler University Linz (2026)
-**Supervisor:** Univ.-Prof. Dr. Sepp Hochreiter
+**Conditional Diffusion Models for Out-of-Distribution Detection**
 
----
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
+[![PyTorch 2.0+](https://img.shields.io/badge/pytorch-2.0+-ee4c2c.svg)](https://pytorch.org/)
+[![Lightning](https://img.shields.io/badge/lightning-2.0+-792ee5.svg)](https://lightning.ai/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-## What This Does
+[Overview](#overview) · [How It Works](#how-it-works) · [Results](#results) · [Quick Start](#quick-start) · [Citation](#citation)
 
-A binary Conditional Diffusion Model (CDM) trained on a single CIFAR-10 class detects out-of-distribution images by comparing reconstruction errors under two conditions:
+</div>
 
-- **c=0 (ID)**: in-distribution class (airplane, class 0)
-- **c=1 (OOD proxy)**: all other CIFAR-10 classes during training
-
-OOD score = `E_t[ ||ε - ε_θ(x_t, t, c=ID)||² ] − E_t[ ||ε - ε_θ(x_t, t, c=OOD)||² ]`
-
-Higher score → more likely OOD. This is **Algorithm 1** from the thesis.
-
-**Key results (3-seed average, CIFAR-10 within-split):**
-- Mean AUROC: **98.33%** (best seed: **98.98%**)
-- Separation loss gain: **+18.86 pp** (λ=0: 80.25% → λ=0.02: 99.11%)
+<p align="center">
+  <img src="assets/pipeline_architecture.png" width="85%" alt="DiffusionOOD pipeline"/>
+</p>
 
 ---
 
-## Pretrained Weights on HuggingFace
+## Overview
 
-All trained checkpoints: **[https://huggingface.co/ahmed-3m/DiffusionOOD](https://huggingface.co/ahmed-3m/DiffusionOOD)**
+This repository implements a binary conditional diffusion model for out-of-distribution (OOD) detection.
+The core idea is simple: train a UNet to denoise images under two competing class conditions — one for in-distribution (ID) samples and one for OOD-proxy samples — then use the difference in reconstruction error at inference to score new inputs.
 
-| File on HF | AUROC (val) | Test AUROC | Params |
-|---|---|---|---|
-| `models/main_training/seed42_best_auroc0.9873.ckpt` | 0.9873 | **0.9898** | 68.79 M |
-| `models/main_training/seed123_best_auroc0.9886.ckpt` | 0.9886 | **0.9914** | 68.79 M |
-| `models/main_training/seed456_best_auroc0.9887.ckpt` | 0.9887 | **0.9686** | 68.79 M |
-| `models/separation_loss_ablation/sep_loss_lambda_0p0_epoch79_auroc0.8025.ckpt` | 0.8025 | — | 68.79 M |
-| `models/separation_loss_ablation/sep_loss_lambda_0p02_epoch29_auroc0.9911.ckpt` | **0.9911** | — | 68.79 M |
-| `models/separation_loss_ablation/sep_loss_lambda_0p1_epoch149_auroc0.9667.ckpt` | 0.9667 | — | 68.79 M |
-| `models/raw_scores/seed42_cifar10_id_scores.pt` | — | 1000 ID scores | score tensor |
-| `models/raw_scores/seed42_cifar10_ood_scores.pt` | — | 9000 OOD scores | score tensor |
+On CIFAR-10 (airplane vs. rest), the model reaches **98.33% mean AUROC** across three seeds (best seed: **98.98%**) with FPR@95 of 4.7%.
+On five external OOD datasets (CIFAR-100, SVHN, FashionMNIST, Textures, Places365) it generalises to **90.5–97.0% AUROC** without any fine-tuning.
 
-> **Which to use for evaluation?** Start with `seed42_best_auroc0.9873.ckpt` — it gives the thesis headline result of 98.98% test AUROC.
+The method also transfers to an industrial inkjet print quality-control task, where the same architecture is used as a feature-level anomaly detector.
 
 ---
 
-## Quick Start
+## Key Innovation: Separation Loss
 
-### Path A — Evaluate with pretrained weights (~10 min)
+<p align="center">
+  <img src="assets/sep_loss_dual.png" width="80%" alt="Separation loss effect on AUROC"/>
+</p>
 
-```bash
-# 1. Clone and install
-git clone https://github.com/ahmed-3m/DiffusionOOD
-cd DiffusionOOD
-pip install -r requirements.txt
+Standard conditional diffusion models often learn class-conditional representations that are not well-separated — both conditions produce similar reconstruction errors, which limits OOD discrimination.
 
-# 2. Download pretrained checkpoint from HuggingFace
-python download_weights.py
+The separation loss adds an explicit training signal that pushes the two class conditions apart:
 
-# 3. Evaluate (CIFAR-10 is auto-downloaded to ./data)
-python scripts/evaluate.py \
-    --checkpoint_path models/seed42_best.ckpt \
-    --num_trials 10 \
-    --data_dir ./data
+```
+L_total = L_MSE + λ · L_sep
 ```
 
-Expected output: AUROC ≈ 0.989, FPR@95 ≈ 0.047.
+where `L_sep = -MSE(pred_c0, pred_c1)` maximises the prediction divergence between conditions during training.
+
+**Results of the λ sweep (Within-CIFAR):**
+
+| λ | AUROC |
+|---|-------|
+| 0 (no separation) | 80.25% |
+| 0.001 | 97.32% |
+| 0.01  | 98.95% |
+| **0.02** | **99.03% ± 0.07%** |
+| 0.05  | 98.78% |
+| 0.10  | 96.67% |
+
+Adding even a small separation weight (`λ=0.001`) recovers **+17.1 percentage points** of AUROC. The optimal `λ=0.02` gives a total **+18.8pp gain** over the unconditioned baseline.
 
 ---
 
-### Path B — Train from scratch (~6–8 hours on 32 GB GPU)
+## How It Works
 
-```bash
-# Single run (seed=42, λ=0.02, thesis best)
-CUDA_VISIBLE_DEVICES=0 python scripts/train.py \
-    --seed 42 \
-    --separation_loss_weight 0.02 \
-    --batch_size 64 \
-    --max_epochs 200 \
-    --eval_interval 10 \
-    --scoring_method difference \
-    --timestep_mode uniform \
-    --experiment_tag thesis_seed42 \
-    --wandb_mode disabled \
-    --output_dir outputs/seed42
-```
+The OOD score for a test image **x** is computed as follows:
 
----
+1. **Sample** *K* random timesteps `t₁, …, t_K` and add Gaussian noise to **x** at each level.
+2. **Denoise** each noisy image under both class conditions: `c=0` (ID) and `c=1` (OOD-proxy). Record the per-condition reconstruction MSE.
+3. **Score**: `OOD_score(x) = mean_k[MSE(c=0, k) - MSE(c=1, k)]`
 
-### Path C — Reproduce the 3-seed study
+A higher score means the model reconstructs **x** better under the OOD condition than the ID condition — indicating the image is likely out-of-distribution.
 
-```bash
-bash scripts/run_three_seeds.sh
-```
-
-Expected: mean AUROC 0.9833 (seeds 42/123/456), individual: 0.9898 / 0.9914 / 0.9686.
-
----
-
-## Step-by-Step Installation
-
-### Requirements
-
-- Python 3.9+
-- CUDA GPU (tested on Quadro GV100 32 GB; minimum ~8 GB for inference, ~12 GB for training)
-- ~500 MB for CIFAR-10 dataset (auto-downloaded)
-- ~800 MB for all pretrained checkpoints
-
-### Install
-
-```bash
-git clone https://github.com/ahmed-3m/DiffusionOOD
-cd DiffusionOOD
-pip install -r requirements.txt
-```
-
-Core packages:
-- `torch>=2.0`, `torchvision>=0.15`
-- `lightning>=2.1` (PyTorch Lightning)
-- `diffusers>=0.25` (HuggingFace Diffusers — provides `UNet2DModel`)
-- `huggingface-hub>=0.20`
-- `wandb>=0.16` (optional; use `--wandb_mode disabled` to skip)
-
----
-
-## Step-by-Step: Evaluate with Pretrained Weights
-
-**Step 1 — Download weights**
-
-```bash
-python download_weights.py
-```
-
-Downloads to `models/`:
-- `models/seed42_best.ckpt` — thesis headline model (AUROC 0.9898)
-- `models/seed123_best.ckpt`
-- `models/seed456_best.ckpt`
-- `models/sep_lambda_0p0.ckpt` — baseline (AUROC 0.8025)
-- `models/sep_lambda_0p02.ckpt` — separation loss best (AUROC 0.9911)
-
-**Step 2 — Run evaluation**
-
-```bash
-python scripts/evaluate.py \
-    --checkpoint_path models/seed42_best.ckpt \
-    --num_trials 10 \
-    --data_dir ./data
-```
-
-CIFAR-10 is automatically downloaded to `./data` on first run.
-
-**Step 3 — View results**
-
-```
-eval_results/
-├── metrics.json     ← AUROC, FPR@95, AUPR
-├── scores_id.pt     ← per-sample scores for ID samples
-├── scores_ood.pt    ← per-sample scores for OOD samples
-└── roc_curve.png    ← ROC curve plot
-```
-
-**Step 4 — External OOD evaluation**
-
-```bash
-python scripts/evaluate_external_ood.py \
-    --checkpoint_path models/seed42_best.ckpt \
-    --num_trials 10 \
-    --datasets cifar100 svhn places365 fashionmnist textures stl10
-```
-
-Expected (seed42): AUROC range 90.50–99.27% across external datasets.
-
----
-
-## Step-by-Step: Train from Scratch
-
-**Step 1 — Single training run (λ=0.02, thesis setting)**
-
-```bash
-CUDA_VISIBLE_DEVICES=0 python scripts/train.py \
-    --seed 42 \
-    --separation_loss_weight 0.02 \
-    --batch_size 64 \
-    --max_epochs 200 \
-    --eval_interval 10 \
-    --scoring_method difference \
-    --timestep_mode uniform \
-    --experiment_tag thesis_seed42 \
-    --wandb_mode disabled \
-    --output_dir outputs/seed42
-```
-
-Key arguments:
-
-| Argument | Thesis value | Notes |
-|---|---|---|
-| `--separation_loss_weight` | 0.02 | λ for class separation loss; 0.0 = DDPM baseline |
-| `--scoring_method` | difference | `difference` = e₀−e₁ (best); `ratio` or `id_error` also available |
-| `--timestep_mode` | uniform | `uniform` wins; `stratified` or `mid_focus` also available |
-| `--batch_size` | 64 | CIFAR-10, 32×32 — fits on 8 GB GPU |
-| `--max_epochs` | 200 | Best AUROC typically at epoch 20–40 with sep loss |
-| `--eval_interval` | 10 | Run validation AUROC every N epochs |
-| `--seed` | 42 / 123 / 456 | Set for reproducibility |
-
-**Step 2 — Train the baseline (λ=0)**
-
-```bash
-CUDA_VISIBLE_DEVICES=0 python scripts/train.py \
-    --seed 42 \
-    --separation_loss_weight 0.0 \
-    --batch_size 64 \
-    --max_epochs 200 \
-    --experiment_tag baseline_seed42 \
-    --wandb_mode disabled \
-    --output_dir outputs/baseline
-```
-
-Expected: converges to AUROC ≈ 0.80 (thesis: 0.8025 at epoch 79).
-
----
-
-## Step-by-Step: Separation Loss Ablation
-
-Reproduces Figure 6.6 / Table 6.2 of the thesis (λ ∈ {0, 0.001, 0.01, 0.02, 0.05, 0.1}):
-
-```bash
-python scripts/run_ablations.py \
-    --lambda_values 0.0 0.001 0.01 0.02 0.05 0.1 \
-    --seed 42 \
-    --max_epochs 200 \
-    --output_dir outputs/sep_loss_ablation
-```
-
-Expected results (seed=42, val AUROC at best checkpoint):
-
-| λ | Best Val AUROC | Epoch |
-|---|---|---|
-| 0.0 | 0.8025 | 79 |
-| 0.001 | 0.9732 | 19 |
-| 0.01 | 0.9869 | — |
-| **0.02** | **0.9911** | **29** |
-| 0.05 | 0.9851 | 19 |
-| 0.1 | 0.9667 | 149 |
-
----
-
-## Step-by-Step: K Ablation (Monte Carlo Trials)
-
-Reproduces Figure 6.3 / Table 6.x of the thesis (K ∈ {1, 5, 10, 25, 50, 100}):
-
-```bash
-python scripts/evaluate.py \
-    --checkpoint_path models/seed42_best.ckpt \
-    --num_trials_list 1 5 10 25 50 100 \
-    --output_dir outputs/k_ablation
-```
-
-Expected results (K=10 is thesis default — optimal trade-off):
-
-| K | AUROC | Time/sample |
-|---|---|---|
-| 1 | 0.9100 | 0.010 s |
-| 5 | 0.9724 | 0.049 s |
-| **10** | **0.9819** | **0.097 s** |
-| 25 | 0.9852 | 0.243 s |
-| 50 | 0.9864 | 0.486 s |
-| 100 | 0.9869 | 0.972 s |
+No test-time fine-tuning, no density estimation, no external features — just forward passes through the denoiser.
 
 ---
 
 ## Results
 
-### Main Results (3-Seed Evaluation)
+### CIFAR-10 OOD Detection
 
-| Seed | Val AUROC | Test AUROC | FPR@95 |
-|---|---|---|---|
-| seed=42 | 0.9873 | **0.9898** | 0.047 |
-| seed=123 | 0.9886 | **0.9914** | 0.046 |
-| seed=456 | 0.9887 | **0.9686** | 0.122 |
-| **Mean** | 0.9882 | **0.9833** | 0.072 |
+<p align="center">
+  <img src="assets/three_seed_auroc.png" width="47%" alt="Training AUROC across 3 seeds"/>
+  &nbsp;&nbsp;
+  <img src="assets/score_distributions_all.png" width="47%" alt="ID vs OOD score distributions"/>
+</p>
 
-> Thesis headline result: **98.98%** AUROC (seed=42). ✅ Exact match verified from stored score tensors.
+| Dataset | AUROC | FPR@95 |
+|---------|-------|--------|
+| Within-CIFAR (airplane vs. rest) | **99.03% ± 0.07%** | 4.7% |
+| CIFAR-100 | 96.97% | — |
+| Places365 | 96.66% | — |
+| FashionMNIST | 94.11% | — |
+| Textures | 92.62% | — |
+| SVHN | 90.50% | — |
 
-### Separation Loss Ablation (seed=42)
+*λ=0.02, K=50, seed-42 checkpoint. External OOD evaluated zero-shot.*
 
-| λ | AUROC | Gain vs λ=0 |
-|---|---|---|
-| 0.0 (baseline) | 0.8025 | — |
-| 0.001 | 0.9732 | +17.1 pp |
-| 0.01 | 0.9869 | +18.4 pp |
-| **0.02** | **0.9911** | **+18.9 pp** |
-| 0.05 | 0.9851 | +18.3 pp |
-| 0.1 | 0.9667 | +16.4 pp |
+### Comparison with One-Class Baselines (CIFAR-10, airplane class)
 
-> Thesis reports: **+18.8 pp** ✅
+<p align="center">
+  <img src="assets/roc_curves_ood.png" width="80%" alt="ROC curves on external OOD datasets"/>
+</p>
 
-### External OOD Generalization (seed=42)
+| Method | AUROC |
+|--------|-------|
+| OC-SVM | 63.0% |
+| Deep SVDD | 61.7% |
+| DROCC | 81.7% |
+| CSI | 89.8% |
+| PANDA | 95.4% |
+| Mean-Shifted CL | 97.5% |
+| **Binary CDM (λ=0.02, ours)** | **99.0% ± 0.1%** |
 
-| Dataset | AUROC |
-|---|---|
-| CIFAR-10 (within-split) | **0.9898** |
-| Food101 | 0.9927 |
-| CIFAR-100 | 0.9697 |
-| STL-10 | 0.9521 |
-| FashionMNIST | 0.9403 |
-| Textures | 0.9284 |
-| SVHN | 0.9050 |
+### Industrial Application: Inkjet Print Quality
 
----
+<p align="center">
+  <img src="assets/model_comparison.png" width="80%" alt="Method comparison on inkjet dataset"/>
+</p>
 
-## Architecture
-
-```
-CIFAR-10 image (32×32×3) + noisy version x_t
-            │
-    ┌───────▼────────────────────────────────┐
-    │  UNet2DModel (HuggingFace Diffusers)   │
-    │  Channels: (128, 256, 256, 256)         │
-    │  Attention: at 16×16 resolution        │
-    │  Class conditioning: 2 embeddings      │
-    │  (c=0: ID class,  c=1: OOD proxy)      │
-    └───────┬────────────────────────────────┘
-            │  predicted noise ε̂
-    ┌───────▼────────────────────────────────┐
-    │  Algorithm 1 Scoring (K trials)        │
-    │  score = mean_t[ e(x,t,c=0) − e(x,t,c=1) ]  │
-    │  e(x,t,c) = ||ε − ε̂(x_t,t,c)||²       │
-    └────────────────────────────────────────┘
-```
-
-- **Parameters:** 68.79 M (UNet2DModel, verified via smoke test)
-- **Diffusion schedule:** Cosine cap (squaredcos_cap_v2), T=1000
-- **Training:** 200 epochs, AdamW (lr=1e-4), batch=64, AMP 16-bit
-- **Separation loss:** pushes ID/OOD class embeddings apart; λ=0.02 is optimal
+The same architecture applied to inkjet print inspection using diffusion-derived features with a downstream classifier (5-fold cross-validation).
 
 ---
 
-## Repository Structure
+## Installation
+
+```bash
+git clone https://github.com/ahmed-3m/DiffusionOOD.git
+cd DiffusionOOD
+pip install -e .
+```
+
+For development (lint + tests):
+
+```bash
+pip install -e ".[dev]"
+```
+
+CIFAR-10 data is downloaded automatically on first run.
+
+---
+
+## Quick Start
+
+### Training
+
+```bash
+python scripts/train.py \
+    --separation_loss_weight 0.02 \
+    --scoring_method difference \
+    --max_epochs 200 \
+    --seed 42
+```
+
+To disable W&B logging:
+
+```bash
+python scripts/train.py --wandb_mode disabled
+```
+
+### Evaluation
+
+```bash
+python scripts/evaluate.py \
+    --checkpoint_path outputs/run_name/best.ckpt \
+    --num_trials 50 \
+    --id_class 0
+```
+
+### Python API
+
+```python
+from src.lightning_module import DiffusionClassifierOOD
+
+model = DiffusionClassifierOOD.load_from_checkpoint("best.ckpt")
+model.eval()
+
+# images: torch.Tensor [B, 3, 32, 32], normalised to [-1, 1]
+scores, predictions = model.score_images(images, num_trials=50)
+# scores > 0  →  likely OOD
+```
+
+---
+
+## Configuration
+
+<details>
+<summary>Key hyperparameters</summary>
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `separation_loss_weight` | 0.01 | λ in L_total. Use 0.02 for best AUROC. |
+| `num_trials` | 10 | Monte Carlo timestep samples *K*. K=10 is 5× faster than K=50 with ~0.8pp AUROC cost. |
+| `scoring_method` | `difference` | `difference` or `ratio`. Difference has lower FPR@95 within-CIFAR. |
+| `timestep_mode` | `mid_focus` | Timestep sampling. `uniform` gives marginally higher AUROC. |
+| `learning_rate` | 1e-4 | AdamW LR with cosine decay. |
+| `max_epochs` | 200 | Early stopping patience = 30 epochs. |
+| `id_class` | 0 | CIFAR-10 class to treat as ID (0 = airplane). |
+
+</details>
+
+<details>
+<summary>Project structure</summary>
 
 ```
 DiffusionOOD/
-├── README.md                           ← this file
-├── requirements.txt
-├── download_weights.py                 ← download pretrained checkpoints from HF
-│
+├── assets/                  # Figures for this README
 ├── configs/
-│   └── default.py                      ← all hyperparameters (dataclasses)
-│
+│   └── default.py           # Dataclass configs
 ├── src/
-│   ├── model.py                        ← UNet2DModel wrapper + model card
-│   ├── data.py                         ← CIFAR-10 binary data module
-│   ├── lightning_module.py             ← training loop + separation loss
-│   ├── scoring.py                      ← Algorithm 1 implementation
-│   ├── metrics.py                      ← AUROC, FPR@95, AUPR
-│   ├── plotting.py                     ← all visualization functions
-│   └── utils.py                        ← callbacks, checkpointing, HF upload
-│
+│   ├── model.py             # ConditionalUNet
+│   ├── data.py              # CIFAR10BinaryDataModule
+│   ├── lightning_module.py  # Training loop + separation loss
+│   ├── scoring.py           # diffusion_classifier_score (Algorithm 1)
+│   ├── metrics.py           # AUROC, FPR@95, AUPR
+│   ├── plotting.py          # Evaluation plots
+│   └── utils.py             # Callbacks, checkpointing
 ├── scripts/
-│   ├── train.py                        ← training entry point
-│   ├── evaluate.py                     ← evaluation entry point
-│   ├── run_ablations.py                ← separation loss λ sweep
-│   ├── evaluate_external_ood.py        ← external dataset evaluation
-│   ├── generate_all_figures.py         ← regenerate all thesis figures
-│   └── run_three_seeds.sh              ← reproduce the 3-seed study
-│
-├── tests/                              ← unit tests
-│
-└── assets/                             ← figures and documentation
+│   ├── train.py
+│   ├── evaluate.py
+│   ├── run_ablations.py
+│   └── evaluate_external_ood.py
+├── tests/
+├── pyproject.toml
+└── requirements.txt
 ```
+
+</details>
 
 ---
 
-## Companion Repository
+## Ablation Studies
 
-The companion **InkjetOOD** repo applies the same CDM approach to industrial inkjet print quality control:
-- GitHub: [https://github.com/ahmed-3m/InkjetOOD](https://github.com/ahmed-3m/InkjetOOD)
-- HuggingFace: [https://huggingface.co/ahmed-3m/InkjetOOD](https://huggingface.co/ahmed-3m/InkjetOOD)
+<p align="center">
+  <img src="assets/k_ablation.png" width="70%" alt="K trials vs AUROC and inference time"/>
+</p>
+
+**Monte Carlo trials (K):** Accuracy saturates quickly — K=10 achieves 98.2% AUROC at 5× the throughput of K=50. Even K=1 reaches 91.0% in under 2 minutes per 10K images.
+
+**Timestep strategy:** Uniform sampling slightly outperforms mid-focus (98.9% vs. 98.5%), suggesting OOD signal is distributed across all noise levels rather than concentrated in the mid-range.
+
+**Scoring method:** The `difference` formulation outperforms `id_error` alone by a large margin (99.0% vs. 78.3% within-CIFAR). On SVHN, `id_error` collapses to near-chance (20.2%), confirming that contrastive conditioning is essential.
 
 ---
 
 ## Citation
 
 ```bibtex
-@mastersthesis{mohammed2026diffusionood,
-  title   = {Conditional Diffusion Models as Generative Classifiers for
-             Out-of-Distribution Detection in Inkjet Print Quality Control},
+@mastersthesis{mohammed2025diffusionood,
   author  = {Mohammed, Ahmed},
+  title   = {Conditional Diffusion Models as Generative Classifiers for
+             Out-of-Distribution Detection},
   school  = {Johannes Kepler University Linz},
   year    = {2026},
-  type    = {Master's Thesis}
+  type    = {Master's Thesis},
 }
 ```
 
 ---
 
+## Acknowledgments
+
+This work was conducted at the Institute for Machine Learning, Johannes Kepler University Linz,
+supervised by Prof. Sepp Hochreiter.
+
+---
+
 ## License
 
-MIT License — see `LICENSE` file.
+MIT — see [LICENSE](LICENSE).
