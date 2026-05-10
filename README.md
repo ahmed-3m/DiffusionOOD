@@ -24,8 +24,8 @@
 This repository implements a binary conditional diffusion model for out-of-distribution (OOD) detection.
 The core idea is simple: train a UNet to denoise images under two competing class conditions — one for in-distribution (ID) samples and one for OOD-proxy samples — then use the difference in reconstruction error at inference to score new inputs.
 
-On CIFAR-10 (airplane vs. rest), the model reaches **98.33% mean AUROC** across three seeds (best seed: **98.98%**) with FPR@95 of 4.7%.
-On five external OOD datasets (CIFAR-100, SVHN, FashionMNIST, Textures, Places365) it generalises to **90.5–97.0% AUROC** without any fine-tuning.
+On CIFAR-10 (airplane vs. rest), the final selected model reaches **99.03% ± 0.07% AUROC** across three seeds, with the independently auditable seed-42 artefact at **98.98% AUROC** and FPR@95 of 4.7%.
+On five external OOD datasets (CIFAR-100, Places365, FashionMNIST, Textures, SVHN) it generalises to **90.50–96.97% AUROC** without any fine-tuning.
 
 The method also transfers to an industrial inkjet print quality-control task, where the same architecture is used as a feature-level anomaly detector.
 
@@ -49,16 +49,27 @@ where `L_sep = -MSE(pred_c0, pred_c1)` maximises the prediction divergence betwe
 
 **Results of the λ sweep (Within-CIFAR):**
 
-| λ | AUROC |
-|---|-------|
-| 0 (no separation) | 80.25% |
-| 0.001 | 97.32% |
-| 0.01  | 98.95% |
-| **0.02** | **99.03% ± 0.07%** |
-| 0.05  | 98.78% |
-| 0.10  | 96.67% |
+<div align="center">
+<table>
+  <thead>
+    <tr>
+      <th>λ</th>
+      <th>Within-CIFAR AUROC</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td>0 (no separation)</td><td>92.52% ± 11.07%</td></tr>
+    <tr><td>0.001</td><td>97.32%</td></tr>
+    <tr><td>0.01</td><td>98.82% ± 0.06%</td></tr>
+    <tr><td><strong>0.02</strong></td><td><strong>99.03% ± 0.07%</strong></td></tr>
+    <tr><td>0.05</td><td>98.51%</td></tr>
+    <tr><td>0.10</td><td>96.67%</td></tr>
+  </tbody>
+</table>
 
-Adding even a small separation weight (`λ=0.001`) recovers **+17.1 percentage points** of AUROC. The optimal `λ=0.02` gives a total **+18.8pp gain** over the unconditioned baseline.
+</div>
+
+The no-separation model is competitive on average but highly seed-sensitive. The selected `λ=0.02` setting gives the best mean AUROC and sharply reduces variance across seeds.
 
 ---
 
@@ -86,16 +97,27 @@ No test-time fine-tuning, no density estimation, no external features — just f
   <img src="assets/score_distributions_all.png" width="47%" alt="ID vs OOD score distributions"/>
 </p>
 
-| Dataset | AUROC | FPR@95 |
-|---------|-------|--------|
-| Within-CIFAR (airplane vs. rest) | **99.03% ± 0.07%** | 4.7% |
-| CIFAR-100 | 96.97% | — |
-| Places365 | 96.66% | — |
-| FashionMNIST | 94.11% | — |
-| Textures | 92.62% | — |
-| SVHN | 90.50% | — |
+<div align="center">
+<table>
+  <thead>
+    <tr>
+      <th>Dataset</th>
+      <th>AUROC</th>
+      <th>FPR@95</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td>Within-CIFAR (airplane vs. rest)</td><td><strong>99.03% ± 0.07%</strong></td><td>4.7%</td></tr>
+    <tr><td>CIFAR-100</td><td>96.97%</td><td>—</td></tr>
+    <tr><td>Places365</td><td>96.66%</td><td>—</td></tr>
+    <tr><td>FashionMNIST</td><td>94.11%</td><td>—</td></tr>
+    <tr><td>Textures</td><td>92.62%</td><td>—</td></tr>
+    <tr><td>SVHN</td><td>90.50%</td><td>—</td></tr>
+  </tbody>
+</table>
+</div>
 
-*λ=0.02, K=50, seed-42 checkpoint. External OOD evaluated zero-shot.*
+*Within-CIFAR reports the λ=0.02 three-seed mean. External OOD reports the auditable seed-42 checkpoint, evaluated zero-shot with K=50.*
 
 ### Comparison with One-Class Baselines (CIFAR-10, airplane class)
 
@@ -103,15 +125,25 @@ No test-time fine-tuning, no density estimation, no external features — just f
   <img src="assets/roc_curves_ood.png" width="80%" alt="ROC curves on external OOD datasets"/>
 </p>
 
-| Method | AUROC |
-|--------|-------|
-| OC-SVM | 63.0% |
-| Deep SVDD | 61.7% |
-| DROCC | 81.7% |
-| CSI | 89.8% |
-| PANDA | 95.4% |
-| Mean-Shifted CL | 97.5% |
-| **Binary CDM (λ=0.02, ours)** | **99.0% ± 0.1%** |
+<div align="center">
+<table>
+  <thead>
+    <tr>
+      <th>Method</th>
+      <th>AUROC</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td>OC-SVM</td><td>63.0%</td></tr>
+    <tr><td>Deep SVDD</td><td>61.7%</td></tr>
+    <tr><td>DROCC</td><td>81.7%</td></tr>
+    <tr><td>CSI</td><td>89.8%</td></tr>
+    <tr><td>PANDA</td><td>95.4%</td></tr>
+    <tr><td>Mean-Shifted CL</td><td>97.5%</td></tr>
+    <tr><td><strong>Binary CDM (λ=0.02, ours)</strong></td><td><strong>99.0% ± 0.1%</strong></td></tr>
+  </tbody>
+</table>
+</div>
 
 ### Industrial Application: Inkjet Print Quality
 
