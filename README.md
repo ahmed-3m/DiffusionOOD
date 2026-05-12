@@ -107,17 +107,18 @@ No test-time fine-tuning, no density estimation, no external features — just f
     </tr>
   </thead>
   <tbody>
-    <tr><td>Within-CIFAR (airplane vs. rest)</td><td><strong>99.03% ± 0.07%</strong></td><td>4.7%</td></tr>
+    <tr><td>Within-CIFAR (three-seed selected model, K=50)</td><td><strong>99.03% ± 0.07%</strong></td><td>—</td></tr>
+    <tr><td>Within-CIFAR (auditable seed-42 artefact, K=100)</td><td><strong>98.98%</strong></td><td>4.7%</td></tr>
     <tr><td>CIFAR-100</td><td>96.97%</td><td>—</td></tr>
-    <tr><td>Places365</td><td>96.66%</td><td>—</td></tr>
-    <tr><td>FashionMNIST</td><td>94.11%</td><td>—</td></tr>
-    <tr><td>Textures</td><td>92.62%</td><td>—</td></tr>
+    <tr><td>Places365</td><td>96.50%</td><td>15.4%</td></tr>
+    <tr><td>FashionMNIST</td><td>94.03%</td><td>20.5%</td></tr>
+    <tr><td>Textures</td><td>92.84%</td><td>30.1%</td></tr>
     <tr><td>SVHN</td><td>90.50%</td><td>—</td></tr>
   </tbody>
 </table>
 </div>
 
-*Within-CIFAR reports the λ=0.02 three-seed mean. External OOD reports the auditable seed-42 checkpoint, evaluated zero-shot with K=50.*
+*The three-seed row reports the final selected λ=0.02 model at K=50. The auditable Within-CIFAR and external OOD rows report the seed-42 λ=0.02 artefact evaluated zero-shot with K=100.*
 
 ### Comparison with One-Class Baselines (CIFAR-10, airplane class)
 
@@ -196,7 +197,7 @@ python scripts/train.py --wandb_mode disabled
 ```bash
 python scripts/evaluate.py \
     --checkpoint_path outputs/run_name/best.ckpt \
-    --num_trials 50 \
+    --num_trials 100 \
     --id_class 0
 ```
 

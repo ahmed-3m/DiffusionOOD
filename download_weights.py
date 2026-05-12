@@ -26,7 +26,8 @@ MAIN_CHECKPOINTS = {
     "seed456_best.ckpt": "models/main_training/seed456_best_auroc0.9887.ckpt",
 }
 
-# Separation-loss ablation checkpoints
+# Separation-loss ablation checkpoints. Filenames retain original checkpoint
+# validation-AUROC tags; thesis and README claims use audited evaluation summaries.
 SEP_LOSS_CHECKPOINTS = {
     "sep_lambda_0p0.ckpt":  "models/separation_loss_ablation/sep_loss_lambda_0p0_epoch79_auroc0.8025.ckpt",
     "sep_lambda_0p02.ckpt": "models/separation_loss_ablation/sep_loss_lambda_0p02_epoch29_auroc0.9911.ckpt",
