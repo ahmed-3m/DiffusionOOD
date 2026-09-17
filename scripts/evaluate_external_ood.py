@@ -4,25 +4,22 @@ Evaluate trained binary CDM checkpoints on external OOD datasets.
 Produces: external_ood_results.json, raw scores per seed per dataset.
 """
 
-import os
-import json
 import argparse
+import json
 import logging
-import time
-from pathlib import Path
+import os
 from glob import glob
 
+import numpy as np
 import torch
-import torch.nn.functional as F
 import torchvision
 import torchvision.transforms as transforms
 from torch.utils.data import DataLoader, Subset
-import numpy as np
 from tqdm import tqdm
 
 from src.lightning_module import DiffusionClassifierOOD
-from src.scoring import diffusion_classifier_score
 from src.metrics import compute_all_metrics
+from src.scoring import diffusion_classifier_score
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format='%(asctime)s | %(levelname)s | %(message)s')

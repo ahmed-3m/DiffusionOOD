@@ -8,30 +8,26 @@ Run ablation studies (Experiments 3-5):
 Uses the best seed42 checkpoint for all ablations.
 """
 
-import os
-import json
 import argparse
+import json
 import logging
+import os
 import time
-from pathlib import Path
-from glob import glob
 
+import numpy as np
 import torch
 import torchvision
 import torchvision.transforms as transforms
-from torch.utils.data import DataLoader, Subset
-import numpy as np
-from tqdm import tqdm
+from torch.utils.data import DataLoader
 
-from src.lightning_module import DiffusionClassifierOOD
-from src.scoring import diffusion_classifier_score, compute_per_timestep_errors
-from src.metrics import compute_all_metrics
 from scripts.evaluate_external_ood import (
     find_best_checkpoint,
     get_cifar10_id_test,
     score_dataset_generic,
-    load_external_ood_datasets,
 )
+from src.lightning_module import DiffusionClassifierOOD
+from src.metrics import compute_all_metrics
+from src.scoring import compute_per_timestep_errors
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format='%(asctime)s | %(levelname)s | %(message)s')
@@ -59,7 +55,7 @@ def run_k_ablation(model, scheduler, device, data_dir, results_dir, batch_size=6
         svhn = torchvision.datasets.SVHN(root=data_dir, split='test', download=True, transform=tfm)
         svhn_loader = DataLoader(svhn, batch_size=batch_size, shuffle=False, num_workers=4)
         has_svhn = True
-    except:
+    except Exception:
         has_svhn = False
         logger.warning("SVHN not available, skipping")
 
@@ -142,7 +138,7 @@ def run_timestep_ablation(model, scheduler, device, data_dir, results_dir, batch
         svhn = torchvision.datasets.SVHN(root=data_dir, split='test', download=True, transform=tfm)
         svhn_loader = DataLoader(svhn, batch_size=batch_size, shuffle=False, num_workers=4)
         has_svhn = True
-    except:
+    except Exception:
         has_svhn = False
 
     for strategy in strategies:
@@ -235,7 +231,7 @@ def run_scoring_method_ablation(model, scheduler, device, data_dir, results_dir,
         svhn = torchvision.datasets.SVHN(root=data_dir, split='test', download=True, transform=tfm)
         svhn_loader = DataLoader(svhn, batch_size=batch_size, shuffle=False, num_workers=4)
         has_svhn = True
-    except:
+    except Exception:
         has_svhn = False
 
     for method in methods:

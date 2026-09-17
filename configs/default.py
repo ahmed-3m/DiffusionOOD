@@ -62,7 +62,7 @@ class LoggingConfig:
     save_top_k: int = 1
     log_every_n_steps: int = 50
     huggingface_repo: str = ""
-    
+
     def generate_run_name(self, tag: str = "run") -> str:
         now = datetime.now()
         return f"{now:%Y-%m-%d}/{now:%H-%M-%S}_{tag}"
