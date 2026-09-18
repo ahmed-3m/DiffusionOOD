@@ -223,13 +223,18 @@ python scripts/evaluate_external_ood.py \
 ### Python API
 
 ```python
+import torch
 from src.lightning_module import DiffusionClassifierOOD
+from src.scoring import diffusion_classifier_score
 
 model = DiffusionClassifierOOD.load_from_checkpoint("best.ckpt")
 model.eval()
 
 # images: torch.Tensor [B, 3, 32, 32], normalised to [-1, 1]
-scores, predictions = model.score_images(images, num_trials=50)
+with torch.no_grad():
+    scores, predictions = diffusion_classifier_score(
+        model.model, model.scheduler, images, num_trials=50
+    )
 # scores > 0  →  likely OOD
 ```
 
@@ -274,6 +279,7 @@ DiffusionOOD/
 │   ├── run_ablations.py
 │   └── evaluate_external_ood.py
 ├── tests/
+├── download_weights.py
 ├── pyproject.toml
 └── requirements.txt
 ```
