@@ -1,7 +1,8 @@
-import torch
 import pytest
-from src.model import ConditionalUNet, create_model
+import torch
+
 from configs.default import ModelConfig
+from src.model import create_model
 
 
 @pytest.fixture
@@ -23,12 +24,13 @@ def test_forward_shape(small_config):
     assert out.shape == (2, 3, 32, 32)
 
 
-def test_forward_no_labels(small_config):
+def test_forward_requires_labels(small_config):
+    """The model is class-conditional by design: missing labels must raise."""
     model = create_model(small_config)
     x = torch.randn(2, 3, 32, 32)
     t = torch.tensor([100, 200])
-    out = model(x, t)
-    assert out.shape == (2, 3, 32, 32)
+    with pytest.raises(ValueError):
+        model(x, t)
 
 
 def test_param_count(small_config):

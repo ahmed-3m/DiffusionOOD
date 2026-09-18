@@ -1,15 +1,16 @@
+import logging
+from typing import Optional
+
+import diffusers
 import torch
 import torch.nn as nn
-import diffusers
-from typing import Optional
-import logging
 
 logger = logging.getLogger(__name__)
 
 
 class ConditionalUNet(nn.Module):
     """UNet2DModel with a binary class-conditioning head for OOD detection."""
-    
+
     def __init__(
         self,
         sample_size: int = 32,
@@ -32,7 +33,7 @@ class ConditionalUNet(nn.Module):
         num_class_embeds: int = 2,
     ):
         super().__init__()
-        
+
         self.unet = diffusers.UNet2DModel(
             sample_size=sample_size,
             in_channels=in_channels,
@@ -43,10 +44,10 @@ class ConditionalUNet(nn.Module):
             up_block_types=up_block_types,
             num_class_embeds=num_class_embeds,
         )
-        
+
         self.num_class_embeds = num_class_embeds
         self.sample_size = sample_size
-    
+
     def forward(
         self,
         sample: torch.Tensor,
@@ -55,7 +56,7 @@ class ConditionalUNet(nn.Module):
     ) -> torch.Tensor:
         """Return predicted noise [B, C, H, W]."""
         return self.unet(sample, timestep, class_labels=class_labels).sample
-    
+
     def get_num_params(self) -> int:
         return sum(p.numel() for p in self.parameters())
 
