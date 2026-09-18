@@ -1,13 +1,13 @@
+import logging
+from typing import Dict, Optional, Tuple
+
 import numpy as np
 from sklearn.metrics import (
-    roc_auc_score,
-    roc_curve,
-    precision_recall_curve,
     average_precision_score,
     confusion_matrix,
+    roc_auc_score,
+    roc_curve,
 )
-from typing import Dict, Optional, Tuple
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -27,20 +27,20 @@ def compute_fpr_at_tpr(
 ) -> Tuple[float, float]:
     """
     Compute False Positive Rate at a target True Positive Rate.
-    
+
     Returns:
         fpr: FPR value at target TPR
         threshold: Score threshold achieving this TPR
     """
     if len(np.unique(labels)) < 2:
         return 1.0, 0.0
-    
+
     fpr, tpr, thresholds = roc_curve(labels, scores)
-    
+
     idx = np.where(tpr >= target_tpr)[0]
     if len(idx) == 0:
         return 1.0, thresholds[-1]
-    
+
     return fpr[idx[0]], thresholds[idx[0]]
 
 
@@ -62,7 +62,7 @@ def compute_det_curve(
 ) -> Tuple[np.ndarray, np.ndarray]:
     """
     Compute Detection Error Tradeoff curve.
-    
+
     Returns False Negative Rate vs False Positive Rate.
     """
     fpr, tpr, _ = roc_curve(labels, scores)
@@ -77,24 +77,24 @@ def compute_all_metrics(
 ) -> Dict[str, float]:
     """
     Compute all OOD detection metrics.
-    
+
     Returns dict with: auroc, fpr95, aupr, accuracy (if predictions given)
     """
     metrics = {}
-    
+
     metrics['auroc'] = compute_auroc(labels, scores)
     metrics['fpr95'], metrics['threshold_95'] = compute_fpr_at_tpr(labels, scores, 0.95)
     metrics['aupr'] = compute_aupr(labels, scores)
-    
+
     if predictions is not None:
         metrics['accuracy'] = compute_accuracy(predictions, labels)
-        
+
         cm = confusion_matrix(labels, predictions)
         if cm.shape == (2, 2):
             tn, fp, fn, tp = cm.ravel()
             metrics['precision'] = tp / (tp + fp) if (tp + fp) > 0 else 0
             metrics['recall'] = tp / (tp + fn) if (tp + fn) > 0 else 0
-    
+
     return metrics
 
 
@@ -103,7 +103,7 @@ def format_metrics_table(metrics: Dict[str, float]) -> str:
     lines = ["=" * 40]
     lines.append(" OOD Detection Metrics")
     lines.append("=" * 40)
-    
+
     key_display = {
         'auroc': 'AUROC',
         'fpr95': 'FPR@95%TPR',
@@ -112,10 +112,10 @@ def format_metrics_table(metrics: Dict[str, float]) -> str:
         'precision': 'Precision',
         'recall': 'Recall',
     }
-    
+
     for key, display in key_display.items():
         if key in metrics:
             lines.append(f" {display:15s}: {metrics[key]:.4f}")
-    
+
     lines.append("=" * 40)
     return "\n".join(lines)

@@ -1,10 +1,10 @@
 import numpy as np
 import pytest
+
 from src.metrics import (
+    compute_all_metrics,
     compute_auroc,
     compute_fpr_at_tpr,
-    compute_aupr,
-    compute_all_metrics,
     format_metrics_table,
 )
 
