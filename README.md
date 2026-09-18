@@ -4,17 +4,20 @@
 
 **Conditional Diffusion Models for Out-of-Distribution Detection**
 
+[![CI](https://github.com/ahmed-3m/DiffusionOOD/actions/workflows/ci.yml/badge.svg)](https://github.com/ahmed-3m/DiffusionOOD/actions/workflows/ci.yml)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![PyTorch 2.0+](https://img.shields.io/badge/pytorch-2.0+-ee4c2c.svg)](https://pytorch.org/)
 [![Lightning](https://img.shields.io/badge/lightning-2.0+-792ee5.svg)](https://lightning.ai/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-[Overview](#overview) · [How It Works](#how-it-works) · [Results](#results) · [Quick Start](#quick-start) · [Citation](#citation)
+Code for the CIFAR-10 track of my Master's thesis at JKU Linz.
+
+[Overview](#overview) · [Separation Loss](#key-innovation-separation-loss) · [Method](#method) · [Results](#results) · [Ablations](#ablation-studies) · [Quick Start](#quick-start) · [Citation](#citation)
 
 </div>
 
 <p align="center">
-  <img src="assets/pipeline_architecture.png" width="85%" alt="DiffusionOOD pipeline"/>
+  <img src="assets/method_pipeline.png" width="92%" alt="DiffusionOOD training and inference schematic"/>
 </p>
 
 ---
@@ -22,22 +25,34 @@
 ## Overview
 
 This repository implements a binary conditional diffusion model for out-of-distribution (OOD) detection.
-The core idea is simple: train a UNet to denoise images under two competing class conditions — one for in-distribution (ID) samples and one for OOD-proxy samples — then use the difference in reconstruction error at inference to score new inputs.
+The core idea is simple: train a UNet to denoise images under two competing class conditions — one for
+in-distribution (ID) samples and one for OOD-proxy samples — then use the difference in reconstruction
+error at inference to score new inputs.
 
-On CIFAR-10 (airplane vs. rest), the final selected model reaches **99.03% ± 0.07% AUROC** across three seeds, with the independently auditable seed-42 artefact at **98.98% AUROC** and FPR@95 of 4.7%.
-On five external OOD datasets (CIFAR-100, Places365, FashionMNIST, Textures, SVHN) it generalises to **90.50–96.97% AUROC** without any fine-tuning.
+**Highlights** (all numbers reproducible from the retained artefacts):
 
-The method also transfers to an industrial inkjet print quality-control task, where the same architecture is used as a feature-level anomaly detector.
+- **99.03% ± 0.07% AUROC** within-CIFAR (airplane vs. rest, λ=0.02, three seeds, K=50)
+- Separation loss lifts the three-seed mean by **+6.5 pp** (92.52% → 99.03%) and collapses the seed
+  spread from **±11.07 to ±0.07**
+- Independently auditable seed-42 artefact: **98.98% AUROC, 4.7% FPR@95, 99.87 AUPR** (K=100)
+- **Zero-shot** transfer to five external OOD datasets: **90.50–96.97% AUROC** (mean 94.17%)
+- K=10 scoring runs ~5× faster than K=50 while still reaching 98.2% AUROC
+
+The same conditional-diffusion scoring idea was also applied to an industrial inkjet print
+quality-control task; that second track lives in the companion repository
+[InkjetOOD](https://github.com/ahmed-3m/InkjetOOD).
 
 ---
 
 ## Key Innovation: Separation Loss
 
 <p align="center">
-  <img src="assets/sep_loss_dual.png" width="80%" alt="Separation loss effect on AUROC"/>
+  <img src="assets/lambda_sweep.png" width="88%" alt="Separation loss weight sweep: Within-CIFAR and SVHN AUROC plus best epochs"/>
 </p>
 
-Standard conditional diffusion models often learn class-conditional representations that are not well-separated — both conditions produce similar reconstruction errors, which limits OOD discrimination.
+Standard conditional diffusion models often learn class-conditional representations that are not
+well-separated — both conditions produce similar reconstruction errors, which limits OOD
+discrimination.
 
 The separation loss adds an explicit training signal that pushes the two class conditions apart:
 
@@ -45,45 +60,53 @@ The separation loss adds an explicit training signal that pushes the two class c
 L_total = L_MSE + λ · L_sep
 ```
 
-where `L_sep = -MSE(pred_c0, pred_c1)` maximises the prediction divergence between conditions during training.
+where `L_sep = -MSE(pred_c0, pred_c1)` maximises the prediction divergence between conditions
+during training.
 
-**Results of the λ sweep (Within-CIFAR):**
+**λ sweep (Within-CIFAR AUROC, three-seed mean ± std for λ ∈ {0, 0.01, 0.02}, seed-42 otherwise):**
 
-<div align="center">
-<table>
-  <thead>
-    <tr>
-      <th>λ</th>
-      <th>Within-CIFAR AUROC</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr><td>0 (no separation)</td><td>92.52% ± 11.07%</td></tr>
-    <tr><td>0.001</td><td>97.32%</td></tr>
-    <tr><td>0.01</td><td>98.82% ± 0.06%</td></tr>
-    <tr><td><strong>0.02</strong></td><td><strong>99.03% ± 0.07%</strong></td></tr>
-    <tr><td>0.05</td><td>98.51%</td></tr>
-    <tr><td>0.10</td><td>96.67%</td></tr>
-  </tbody>
-</table>
+| λ | Within-CIFAR AUROC | Best epoch (seed 42) | SVHN AUROC |
+|---|---|---|---|
+| 0 (no separation) | 92.52% ± 11.07% | 79 | 100.0% † |
+| 0.001 | 97.32% | 19 | 92.0% |
+| 0.01 | 98.82% ± 0.06% | 19 | 90.5% |
+| **0.02** | **99.03% ± 0.07%** | 29 | 96.6% |
+| 0.05 | 98.51% | 19 | 97.3% |
+| 0.10 | 96.67% | 149 | 86.9% † |
 
-</div>
+† Documented artefact points kept for traceability: the λ=0 SVHN value (100%) stems from a
+scoring-direction artefact on degenerate near-zero difference scores.
 
-The no-separation model is competitive on average but highly seed-sensitive. The selected `λ=0.02` setting gives the best mean AUROC and sharply reduces variance across seeds.
+The stability story is the point. Without separation, the three seeds land at 79.73%, 98.81% and
+99.01% — conditioning alone works for some seeds and fails for others. With λ=0.02 the seeds land at
+99.11%, 98.95% and 99.04%: the mean rises by +6.5 pp and the variance effectively disappears.
+At λ=0.10 the separation objective starts to dominate the denoising loss (96.67%, unusually late
+convergence at epoch 149).
 
 ---
 
-## How It Works
+## Method
 
 The OOD score for a test image **x** is computed as follows:
 
-1. **Sample** *K* random timesteps `t₁, …, t_K` and add Gaussian noise to **x** at each level.
-2. **Denoise** each noisy image under both class conditions: `c=0` (ID) and `c=1` (OOD-proxy). Record the per-condition reconstruction MSE.
-3. **Score**: `OOD_score(x) = mean_k[MSE(c=0, k) - MSE(c=1, k)]`
+1. **Sample** *K* random timesteps `t₁ … t_K` and add Gaussian noise to **x** at each level.
+2. **Denoise** each noisy image under both class conditions: `c=0` (ID) and `c=1` (OOD-proxy).
+   Record the per-condition reconstruction MSE.
+3. **Score**: `OOD_score(x) = mean_k [ MSE(c=0, k) − MSE(c=1, k) ]`
 
-A higher score means the model reconstructs **x** better under the OOD condition than the ID condition — indicating the image is likely out-of-distribution.
+A higher score means the model reconstructs **x** better under the OOD condition than under the ID
+condition — indicating the image is likely out-of-distribution.
 
-No test-time fine-tuning, no density estimation, no external features — just forward passes through the denoiser.
+<p align="center">
+  <img src="assets/per_timestep_error.png" width="82%" alt="Mean reconstruction error per timestep for ID and OOD samples under both conditions"/>
+</p>
+
+The per-timestep view shows where the signal lives: mean reconstruction error as a function of
+timestep *t* for ID and OOD samples under both conditions (shaded bands: one standard deviation).
+The gap between the `c=0` and `c=1` curves is what the score aggregates across timesteps.
+
+No test-time fine-tuning, no density estimation, no external features — just forward passes
+through the denoiser.
 
 ---
 
@@ -92,67 +115,55 @@ No test-time fine-tuning, no density estimation, no external features — just f
 ### CIFAR-10 OOD Detection
 
 <p align="center">
-  <img src="assets/three_seed_auroc.png" width="47%" alt="Training AUROC across 3 seeds"/>
+  <img src="assets/val_auroc_seeds.png" width="47%" alt="Validation AUROC across seeds 42/123/456"/>
   &nbsp;&nbsp;
-  <img src="assets/score_distributions_all.png" width="47%" alt="ID vs OOD score distributions"/>
+  <img src="assets/score_threshold_calibration.png" width="47%" alt="Within-CIFAR score distribution with TPR-95 operating threshold"/>
 </p>
 
-<div align="center">
-<table>
-  <thead>
-    <tr>
-      <th>Dataset</th>
-      <th>AUROC</th>
-      <th>FPR@95</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr><td>Within-CIFAR (three-seed selected model, K=50)</td><td><strong>99.03% ± 0.07%</strong></td><td>—</td></tr>
-    <tr><td>Within-CIFAR (auditable seed-42 artefact, K=100)</td><td><strong>98.98%</strong></td><td>4.7%</td></tr>
-    <tr><td>CIFAR-100</td><td>96.97%</td><td>—</td></tr>
-    <tr><td>Places365</td><td>96.50%</td><td>15.4%</td></tr>
-    <tr><td>FashionMNIST</td><td>94.03%</td><td>20.5%</td></tr>
-    <tr><td>Textures</td><td>92.84%</td><td>30.1%</td></tr>
-    <tr><td>SVHN</td><td>90.50%</td><td>—</td></tr>
-  </tbody>
-</table>
-</div>
+*Left: validation AUROC across training seeds (42/123/456) from checkpoint metadata — a stability
+summary; core quantitative claims come from the reproducible raw-score evaluation in the table.
+Right: Within-CIFAR score distribution with the operating threshold selected at TPR = 95%
+(FPR@95 = 4.7%).*
 
-*The three-seed row reports the final selected λ=0.02 model at K=50. The auditable Within-CIFAR and external OOD rows report the seed-42 λ=0.02 artefact evaluated zero-shot with K=100.*
+| Dataset | Type | AUROC | FPR@95 | AUPR |
+|---|---|---|---|---|
+| Within-CIFAR (three-seed selected model, λ=0.02, K=50) | — | **99.03% ± 0.07%** | — | — |
+| Within-CIFAR (airplane vs. rest, auditable seed-42 artefact, K=100) | Within | **98.98%** | 4.7% | 99.87% |
+| CIFAR-100 | Near OOD | 96.97% | 14.8% | 99.65% |
+| Places365 | Far OOD | 96.50% | 15.4% | 99.57% |
+| FashionMNIST | Far OOD | 94.03% | 20.5% | 99.16% |
+| Textures (DTD) | Far OOD | 92.84% | 30.1% | 95.97% |
+| SVHN | Far OOD | 90.50% | 27.0% | 99.38% |
+
+*External datasets are evaluated zero-shot against the full CIFAR-10 test reference pool
+(seed-42, λ=0.02, K=100, difference scoring); the three-seed row reports the selected λ=0.02
+model at K=50.*
 
 ### Comparison with One-Class Baselines (CIFAR-10, airplane class)
 
-<p align="center">
-  <img src="assets/roc_curves_ood.png" width="80%" alt="ROC curves on external OOD datasets"/>
-</p>
+| Method | Type | AUROC |
+|---|---|---|
+| OC-SVM (raw pixels) | One-class | 63.0% |
+| Deep SVDD | One-class | 61.7% |
+| DROCC | One-class | 81.7% |
+| CSI | Contrastive | 89.8% |
+| PANDA | Pretrained + OC | 95.4% |
+| Mean-Shifted C.L. | Contrastive | 97.5% |
+| Binary CDM (λ=0, ours) | Generative | 92.52% ± 11.07% |
+| **Binary CDM (λ=0.02, ours)** | Generative + sep. loss | **99.03% ± 0.07%** |
 
-<div align="center">
-<table>
-  <thead>
-    <tr>
-      <th>Method</th>
-      <th>AUROC</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr><td>OC-SVM</td><td>63.0%</td></tr>
-    <tr><td>Deep SVDD</td><td>61.7%</td></tr>
-    <tr><td>DROCC</td><td>81.7%</td></tr>
-    <tr><td>CSI</td><td>89.8%</td></tr>
-    <tr><td>PANDA</td><td>95.4%</td></tr>
-    <tr><td>Mean-Shifted CL</td><td>97.5%</td></tr>
-    <tr><td><strong>Binary CDM (λ=0.02, ours)</strong></td><td><strong>99.0% ± 0.1%</strong></td></tr>
-  </tbody>
-</table>
-</div>
+*Baseline values are the numbers published by the original papers (or as reproduced by the PANDA
+paper) under the same one-vs-rest protocol. The comparison is asymmetric: the CDM is trained with
+an OOD-proxy class, whereas the one-class baselines see only ID samples.*
 
-### Industrial Application: Inkjet Print Quality
+### Industrial application
 
-<p align="center">
-  <img src="assets/model_comparison.png" width="80%" alt="Method comparison on inkjet dataset"/>
-</p>
-
-The same architecture applied to inkjet print inspection using diffusion-derived features with a downstream classifier (5-fold cross-validation).
+The same scoring idea was applied to industrial inkjet print quality control: YOLOv8 localises
+eight print features on experimental prints, and a crop-level conditional diffusion model scores
+each crop (stratified 5-fold cross-validation on the FTI_Zer0P dataset from PROFACTOR GmbH).
+Code, dataset documentation and results for that track — including the cross-domain analysis of
+where separation loss does and does not help — live in the companion repository
+**[InkjetOOD](https://github.com/ahmed-3m/InkjetOOD)**.
 
 ---
 
@@ -201,16 +212,29 @@ python scripts/evaluate.py \
     --id_class 0
 ```
 
+External OOD benchmarks are evaluated from a saved evaluation results directory:
+
+```bash
+python scripts/evaluate_external_ood.py \
+    --results_dir eval_results/run_name \
+    --num_trials 100
+```
+
 ### Python API
 
 ```python
+import torch
 from src.lightning_module import DiffusionClassifierOOD
+from src.scoring import diffusion_classifier_score
 
 model = DiffusionClassifierOOD.load_from_checkpoint("best.ckpt")
 model.eval()
 
 # images: torch.Tensor [B, 3, 32, 32], normalised to [-1, 1]
-scores, predictions = model.score_images(images, num_trials=50)
+with torch.no_grad():
+    scores, predictions = diffusion_classifier_score(
+        model.model, model.scheduler, images, num_trials=50
+    )
 # scores > 0  →  likely OOD
 ```
 
@@ -255,6 +279,7 @@ DiffusionOOD/
 │   ├── run_ablations.py
 │   └── evaluate_external_ood.py
 ├── tests/
+├── download_weights.py
 ├── pyproject.toml
 └── requirements.txt
 ```
@@ -265,22 +290,41 @@ DiffusionOOD/
 
 ## Ablation Studies
 
+### Monte Carlo trials (K)
+
 <p align="center">
-  <img src="assets/k_ablation.png" width="70%" alt="K trials vs AUROC and inference time"/>
+  <img src="assets/k_ablation.png" width="72%" alt="K trials vs AUROC and inference time"/>
 </p>
 
-**Monte Carlo trials (K):** Accuracy saturates quickly — K=10 achieves 98.2% AUROC at 5× the throughput of K=50. Even K=1 reaches 91.0% in under 2 minutes per 10K images.
+Accuracy saturates quickly — K=10 achieves 98.2% AUROC at 5× the throughput of K=50, and the curve
+flattens after K=25. Even K=1 reaches 91.0% in under 2 minutes per 10K images.
 
-**Timestep strategy:** Uniform sampling slightly outperforms mid-focus (98.9% vs. 98.5%), suggesting OOD signal is distributed across all noise levels rather than concentrated in the mid-range.
+### Timestep sampling strategy
 
-**Scoring method:** The `difference` formulation outperforms `id_error` alone by a large margin (99.0% vs. 78.3% within-CIFAR). On SVHN, `id_error` collapses to near-chance (20.2%), confirming that contrastive conditioning is essential.
+<p align="center">
+  <img src="assets/timestep_strategies.png" width="72%" alt="AUROC for uniform, stratified and mid-focus timestep sampling"/>
+</p>
+
+Uniform sampling is best (Within-CIFAR 98.9%, SVHN 95.4%), stratified sampling is equivalent, and
+mid-focus underperforms on both datasets (98.5% / 93.8%) — suggesting the OOD signal is distributed
+across noise levels rather than concentrated in the mid-range.
+
+### Scoring method
+
+<p align="center">
+  <img src="assets/scoring_methods.png" width="72%" alt="AUROC for difference, ratio and ID-error-only scoring"/>
+</p>
+
+Difference and ratio scoring both perform well, while ID-error-only scoring degrades severely:
+78.3% within-CIFAR and a near-chance collapse on SVHN (20.2%). Contrastive conditioning — scoring
+against *both* conditions — is essential.
 
 ---
 
 ## Citation
 
 ```bibtex
-@mastersthesis{mohammed2025diffusionood,
+@mastersthesis{mohammed2026diffusionood,
   author  = {Mohammed, Ahmed},
   title   = {Conditional Diffusion Models as Generative Classifiers for
              Out-of-Distribution Detection},
@@ -295,7 +339,9 @@ DiffusionOOD/
 ## Acknowledgments
 
 This work was conducted at the Institute for Machine Learning, Johannes Kepler University Linz,
-supervised by Prof. Sepp Hochreiter.
+supervised by Prof. Sepp Hochreiter, with Claus Hofmann, MSc as assistant supervisor, and in
+cooperation with PROFACTOR GmbH (Steyr, Austria). Supported by the Government of Upper Austria
+(project Zer0P).
 
 ---
 
