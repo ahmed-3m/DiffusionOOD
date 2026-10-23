@@ -1,6 +1,6 @@
 torch==2.1.2
 lightning==2.1.2
-diffusers==0.25.1
+diffusers==0.38.0
 wandb==0.16.0
 huggingface-hub==0.20.0
 torchvision==0.16.2
