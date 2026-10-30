@@ -2,7 +2,7 @@ torch==2.14.1
 lightning==2.6.6
 diffusers==0.41.0
 wandb==0.31.0
-huggingface-hub==1.33.0
+huggingface-hub==2.3.0
 torchvision==0.29.1
 scikit-learn==1.7.2
 matplotlib==3.10.9
