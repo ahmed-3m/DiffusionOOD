@@ -348,3 +348,7 @@ cooperation with PROFACTOR GmbH (Steyr, Austria). Supported by the Government of
 ## License
 
 MIT — see [LICENSE](LICENSE).
+
+---
+
+**By Ahmed Mohammed** — AI/ML engineer, Linz · [OOD case study](https://ahmed-3m.github.io/case-studies/diffusion-ood/) · [Thesis PDF](https://ahmed-3m.github.io/Mohammed_Ahmed_Thesis_Diffusion_OOD_Detection.pdf) · [Portfolio](https://ahmed-3m.github.io) · [LinkedIn](https://www.linkedin.com/in/ahmed-3m/)
